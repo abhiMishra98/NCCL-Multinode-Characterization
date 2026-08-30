@@ -31,8 +31,6 @@ Example (trimmed):
 
 PCIe address format is `domain:bus:device.function` (e.g. `0000:3d:00.0`); the `bus` field is what you trace up through the `lspci -tv` tree to find its root complex.
 
-**Result:** on both servers, the GPU and NIC sit under the same root complex — no cross-socket hop for GPUDirect RDMA traffic.
-
 ## NCCL All-Reduce Benchmark (GPUDirect RDMA over RoCE)
 
 `all_reduce_perf` from [nccl-tests](https://github.com/NVIDIA/nccl-tests) was run across the 2 nodes (1 GPU per node) via `mpirun`:
@@ -134,3 +132,4 @@ The crossover says where to spend tuning effort, given the message sizes a workl
 
 - **Small, frequent AllReduce calls** (small gradient tensors, many sync points) sit below crossover — the win comes from bucketing/fusing gradients into larger messages (e.g. tuning PyTorch DDP's `bucket_cap_mb`) or cutting protocol overhead, not from a faster NIC.
 - **Large fused gradient buffers or big collective ops** (checkpointing, activation exchange) sit above crossover — here RDMA's bandwidth advantage is worth every bit of setup effort, and TCP-only would genuinely cripple throughput.
+ NIC's rated link speed to gauge how close the achieved throughput is to line rate
