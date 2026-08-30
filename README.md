@@ -132,4 +132,24 @@ The crossover says where to spend tuning effort, given the message sizes a workl
 
 - **Small, frequent AllReduce calls** (small gradient tensors, many sync points) sit below crossover — the win comes from bucketing/fusing gradients into larger messages (e.g. tuning PyTorch DDP's `bucket_cap_mb`) or cutting protocol overhead, not from a faster NIC.
 - **Large fused gradient buffers or big collective ops** (checkpointing, activation exchange) sit above crossover — here RDMA's bandwidth advantage is worth every bit of setup effort, and TCP-only would genuinely cripple throughput.
- NIC's rated link speed to gauge how close the achieved throughput is to line rate
+
+## Nsight Systems Trace: Verifying the GDR Data Path
+
+GDR (GPUDirect RDMA) was enabled in NCCL by setting `NCCL_NET_GDR_LEVEL`, letting the NIC read/write GPU memory directly instead of staging through a host-memory bounce buffer. An `nsys` capture of a single-rank `all_reduce_perf` run confirms this actually happened at the kernel level, and surfaces a second finding about connection setup cost:
+
+![Nsight Systems timeline of an AllReduce run](Images/allReduce-nsys.png)
+
+### GDR eliminated the bulk data-copy path
+
+Every `Host-to-Device`/`Device-to-Host` memcpy in the trace is 8–152 bytes — nowhere near the 8–128 MiB payloads being AllReduced. These are `nccl-tests`' own harness writing small check/seed values, not the collective's data; there is no megabyte-scale D2H/H2D copy anywhere in the trace. That's a direct, kernel-level confirmation of the α/β discussion above: with GDR, the actual payload never touches host memory — the NIC moves it straight to/from GPU memory.
+
+### The first `ncclAllReduce()` call carries the one-time connection setup cost
+
+| Call | Duration |
+|---|---|
+| 1 | 71,905,553 ns (**71.9 ms**) |
+| 2 | 80,091 ns |
+| 3 | 78,842 ns |
+| ... | 16–80 µs |
+
+The first call is a ~1,000× outlier; every call after it settles into microseconds. That gap is the one-time cost of standing up the RDMA connection — queue-pair setup, memory registration, channel handshake — all paid upfront and hidden inside the first collective call. It's concrete, measured confirmation of why `nccl-tests` always discards its warmup iteration(s) before reporting bandwidth: without a warmup, this single outlier would dominate and wreck the average.
