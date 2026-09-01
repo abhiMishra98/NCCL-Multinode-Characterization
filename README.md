@@ -4,7 +4,6 @@ Characterizing NCCL collective communication across a heterogeneous 2-node GPU c
 
 ## Contents
 
-- [Baseline Performance](#baseline-performance)
 - [GPU-NIC NUMA Topology](#gpu-nic-numa-topology)
 - [NCCL All-Reduce Benchmark](#nccl-all-reduce-benchmark-gpudirect-rdma-over-roce)
 - [Latency-Bound vs. Bandwidth-Bound: The Crossover](#latency-bound-vs-bandwidth-bound-the-crossover)
