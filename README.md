@@ -10,12 +10,6 @@ Characterizing NCCL collective communication across a heterogeneous 2-node GPU c
 - [Latency-Bound vs. Bandwidth-Bound: The Crossover](#latency-bound-vs-bandwidth-bound-the-crossover)
 - [Nsight Systems Trace: Verifying the GDR Data Path](#nsight-systems-trace-verifying-the-gdr-data-path)
 
-## Baseline Performance
-
-| Metric | Value | Method |
-|---|---|---|
-| Network bandwidth | 942 Mbps (TCP/Ethernet) | `iperf3` |
-
 ## GPU-NIC NUMA Topology
 
 - `lscpu` → check `Socket(s):` for the number of CPU sockets/NUMA nodes.
